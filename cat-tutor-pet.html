@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🐱咪咪课堂养成小猫</title>
+<title>🐱咪咪养成小屋</title>
 <style>
 *{box-sizing:border-box;font-family:"SimHei",sans-serif}
 body{margin:0;background:#fff0f6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -74,7 +74,7 @@ input[type="text"]{width:100%;padding:9px;border:1px solid #ffc2d8;border-radius
     </div>
 </div>
 
-<div class="modal hidden" id="testModal">
+<div class="modal hidden" id="testModal" onclick="closeTestByBg(event)">
     <div class="modal-inner">
         <h3>📖 随堂小测试</h3>
         <div id="testContent"></div>
@@ -99,7 +99,6 @@ const talkLines=[
     "太棒啦，又拿到积分咯！"
 ];
 
-// 测试题库，你后面可以自己加题目
 const testBank = [
     {q:"12 × 5 = ?", opts:["50","60","72"], ans:1, reward:6},
     {q:"地球公转一圈大约是？", opts:["1天","1个月","1年"], ans:2, reward:6},
@@ -108,7 +107,6 @@ const testBank = [
     {q:"我国首都是？", opts:["上海","北京","广州"], ans:1, reward:5},
 ];
 
-// 装扮库
 const decoList=[
     {id:"bow1",name:"粉色大蝴蝶结",cost:12},
     {id:"sakura",name:"樱花发饰",cost:18},
@@ -124,7 +122,6 @@ const decoList=[
     {id:"medal",name:"进步勋章",cost:45}
 ];
 
-// 存档：age现在是手动点击计数，不再绑定时间
 let save=JSON.parse(localStorage.getItem("pinkCatSave"))||{
     name:"",
     score:0,
@@ -136,7 +133,6 @@ function saveData(){
     localStorage.setItem("pinkCatSave",JSON.stringify(save));
 }
 
-// 获取阶段
 function getStage(day){
     if(day<=7) return "奶猫（小小一只）";
     else if(day<=30) return "幼猫";
@@ -155,7 +151,6 @@ function renderInfo(){
     document.getElementById("wearText").innerText=map[save.wearing];
 }
 
-// 绘制粉色小猫，尺寸随年龄变大
 function drawCat(){
     ctx.clearRect(0,0,240,240);
     let scale;
@@ -169,7 +164,6 @@ function drawCat(){
     ctx.beginPath();
     ctx.arc(cx,cy,52*scale,0,Math.PI*2);
     ctx.fill();
-    //耳朵
     ctx.beginPath();
     ctx.moveTo(cx-38*scale,cy-34*scale);
     ctx.lineTo(cx-20*scale,cy-54*scale);
@@ -180,21 +174,17 @@ function drawCat(){
     ctx.lineTo(cx+20*scale,cy-54*scale);
     ctx.lineTo(cx+14*scale,cy-24*scale);
     ctx.closePath();ctx.fill();
-    //内耳
     ctx.fillStyle="#f28fb8";
     ctx.beginPath();
     ctx.arc(cx-26*scale,cy-36*scale,7*scale,0,Math.PI*2);ctx.fill();
     ctx.beginPath();
     ctx.arc(cx+26*scale,cy-36*scale,7*scale,0,Math.PI*2);ctx.fill();
-    //眼睛
     ctx.fillStyle="#222222";
     ctx.beginPath();ctx.arc(cx-17*scale,cy-10*scale,5.5*scale,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.arc(cx+17*scale,cy-10*scale,5.5*scale,0,Math.PI*2);ctx.fill();
-    //腮红
     ctx.fillStyle="#ff9fc080";
     ctx.beginPath();ctx.arc(cx-32*scale,cy+4*scale,8*scale,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.arc(cx+32*scale,cy+4*scale,8*scale,0,Math.PI*2);ctx.fill();
-    //嘴巴
     ctx.strokeStyle="#b04872";
     ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(cx,cy+8*scale,14*scale,0,Math.PI);ctx.stroke();
@@ -289,7 +279,6 @@ function drawDeco(cx,cy,s){
     }
 }
 
-// ✅ 点击小猫：长大一天 + 随机台词
 canvas.onclick=()=>{
     save.age +=1;
     saveData();renderInfo();drawCat();
@@ -314,7 +303,6 @@ function addScore(num){
     setTimeout(()=>bubble.classList.add("hidden"),2400);
 }
 
-// 随堂测试
 let currentTest = null;
 function openTest(){
     const idx = Math.floor(Math.random() * testBank.length);
@@ -339,9 +327,15 @@ function checkAnswer(i){
         resDom.style.color="#d84878";
     }
 }
-function closeTest(){document.getElementById("testModal").classList.add("hidden")}
+function closeTest(){
+    document.getElementById("testModal").classList.add("hidden");
+}
+function closeTestByBg(e){
+    if(e.target.id === "testModal"){
+        closeTest();
+    }
+}
 
-//改名
 function openRename(){
     document.getElementById("renameModal").classList.remove("hidden");
     document.getElementById("nameInput").value=save.name;
@@ -353,7 +347,6 @@ function saveName(){
     closeRename();
 }
 
-//商店
 function openShop(){
     const wrap=document.getElementById("shopList");
     wrap.innerHTML="";
