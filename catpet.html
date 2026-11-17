@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐱咪咪课堂养成小猫</title>
+<style>
+*{box-sizing:border-box;font-family:"SimHei",sans-serif}
+body{margin:0;background:#fff0f6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.wrap{width:360px;background:#fff7fb;border-radius:24px;padding:22px;box-shadow:0 6px 16px #ffb8d055}
+.title{text-align:center;font-size:22px;color:#d86898;font-weight:bold;margin-bottom:10px}
+.info-panel{text-align:center;margin-bottom:10px;color:#b44e7c}
+.name{font-size:20px;font-weight:bold;margin-bottom:4px}
+.meta{font-size:15px;line-height:1.5}
+.cat-canvas{width:240px;height:240px;margin:0 auto;display:block}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.wide-btn{grid-column:1/-1}
+button{border:none;border-radius:14px;padding:10px;font-size:15px;cursor:pointer;background:#ffb8d2;color:#902e58;font-weight:500}
+button:hover{background:#ffa4c4}
+.bubble{position:fixed;background:#fff;border:2px solid #ffb8d2;border-radius:14px;padding:8px 12px;box-shadow:0 3px 8px #00000020;max-width:220px;pointer-events:none;transition:opacity 0.3s;z-index:20}
+.hidden{display:none}
+.modal{position:fixed;inset:0;background:#00000035;display:flex;align-items:center;justify-content:center;z-index:99}
+.modal-inner{background:#fff7fb;padding:22px;border-radius:20px;width:320px;max-height:80vh;overflow:auto}
+.modal-inner h3{color:#d86898;margin-top:0;text-align:center}
+.shop-item{padding:9px;border-bottom:1px solid #ffd7e6;cursor:pointer}
+.shop-item:hover{background:#ffe8f2}
+.bag-label{display:inline-block;background:#ffd7e6;color:#a23b66;border-radius:8px;padding:3px 6px;margin:2px;font-size:13px}
+input[type="text"]{width:100%;padding:9px;border:1px solid #ffc2d8;border-radius:12px;margin:10px 0;font-size:15px}
+.tip{font-size:13px;color:#c26088;text-align:center;margin-top:6px}
+.opt-btn{margin:4px;width:100%;text-align:left;padding:8px 12px}
+.answer-result{text-align:center;font-weight:bold;margin:8px 0;font-size:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="title">🐱 咪咪养成小屋</div>
+    <div class="info-panel">
+        <div class="name" id="catNameText">未命名小猫</div>
+        <div class="meta">
+            <div>年龄：<span id="ageText">0</span>天｜<span id="stageText">奶猫</span></div>
+            <div>积分：<span id="scoreText">0</span></div>
+            <div>当前穿戴：<span id="wearText">无</span></div>
+        </div>
+    </div>
+    <canvas class="cat-canvas" id="catCanvas" width="240" height="240"></canvas>
+    <div class="btns">
+        <button onclick="addScore(3)">勇敢发言 +3</button>
+        <button onclick="addScore(2)">完成习题 +2</button>
+        <button onclick="addScore(4)">订正弄懂 +4</button>
+        <button onclick="openTest()">📝随堂小测</button>
+        <button onclick="openRename()">修改名字</button>
+        <button class="wide-btn" onclick="openShop()">🏪装扮商店 & 背包</button>
+    </div>
+    <div class="tip">点击小猫，小猫长大一天✨</div>
+</div>
+<div class="bubble hidden" id="bubble"></div>
+
+<div class="modal hidden" id="shopModal">
+    <div class="modal-inner">
+        <h3>装扮商店</h3>
+        <div id="shopList"></div>
+        <button style="margin-top:12px;width:100%" onclick="closeShop()">关闭</button>
+    </div>
+</div>
+
+<div class="modal hidden" id="renameModal">
+    <div class="modal-inner">
+        <h3>给小猫取名</h3>
+        <input type="text" id="nameInput" placeholder="输入小猫名字">
+        <div style="display:flex;gap:8px">
+            <button style="flex:1" onclick="saveName()">保存</button>
+            <button style="flex:1" onclick="closeRename()">取消</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal hidden" id="testModal">
+    <div class="modal-inner">
+        <h3>📖 随堂小测试</h3>
+        <div id="testContent"></div>
+        <div id="testResult" class="answer-result"></div>
+        <button style="margin-top:12px;width:100%" onclick="closeTest()">关闭</button>
+    </div>
+</div>
+
+<script>
+const canvas=document.getElementById("catCanvas");
+const ctx=canvas.getContext("2d");
+
+const talkLines=[
+    "没关系，慢慢想😊",
+    "敢说出思路就超棒！",
+    "错题也是进步的机会哦",
+    "我们再试一次吧✨",
+    "哇，这一步想对啦！",
+    "加油，你可以的🥰",
+    "坚持练习会越来越厉害！",
+    "你今天也很努力啦！",
+    "太棒啦，又拿到积分咯！"
+];
+
+// 测试题库，你后面可以自己加题目
+const testBank = [
+    {q:"12 × 5 = ?", opts:["50","60","72"], ans:1, reward:6},
+    {q:"地球公转一圈大约是？", opts:["1天","1个月","1年"], ans:2, reward:6},
+    {q:"直角等于多少度？", opts:["90°","180°","360°"], ans:0, reward:5},
+    {q:"水的化学式是？", opts:["H₂O","CO₂","O₂"], ans:0, reward:7},
+    {q:"我国首都是？", opts:["上海","北京","广州"], ans:1, reward:5},
+];
+
+// 装扮库
+const decoList=[
+    {id:"bow1",name:"粉色大蝴蝶结",cost:12},
+    {id:"sakura",name:"樱花发饰",cost:18},
+    {id:"crown",name:"小皇冠",cost:22},
+    {id:"hat",name:"小黑礼帽",cost:32},
+    {id:"starclip",name:"星星发夹",cost:15},
+    {id:"scarf",name:"粉色围巾",cost:20},
+    {id:"wing",name:"天使小翅膀",cost:40},
+    {id:"glasses",name:"圆框眼镜",cost:26},
+    {id:"heartglass",name:"爱心眼镜",cost:30},
+    {id:"bag",name:"小书包",cost:35},
+    {id:"birthday",name:"生日帽",cost:28},
+    {id:"medal",name:"进步勋章",cost:45}
+];
+
+// 存档：age现在是手动点击计数，不再绑定时间
+let save=JSON.parse(localStorage.getItem("pinkCatSave"))||{
+    name:"",
+    score:0,
+    owned:[],
+    wearing:"none",
+    age:0
+};
+function saveData(){
+    localStorage.setItem("pinkCatSave",JSON.stringify(save));
+}
+
+// 获取阶段
+function getStage(day){
+    if(day<=7) return "奶猫（小小一只）";
+    else if(day<=30) return "幼猫";
+    else if(day<=90) return "少年猫";
+    else return "成年猫咪";
+}
+
+function renderInfo(){
+    const stage = getStage(save.age);
+    document.getElementById("catNameText").innerText=save.name||"还没有名字";
+    document.getElementById("ageText").innerText=save.age;
+    document.getElementById("stageText").innerText=stage;
+    document.getElementById("scoreText").innerText=save.score;
+    const map={"none":"无"};
+    decoList.forEach(d=>map[d.id]=d.name);
+    document.getElementById("wearText").innerText=map[save.wearing];
+}
+
+// 绘制粉色小猫，尺寸随年龄变大
+function drawCat(){
+    ctx.clearRect(0,0,240,240);
+    let scale;
+    if(save.age<=7) scale=0.6;
+    else if(save.age<=30) scale=0.78;
+    else if(save.age<=90) scale=0.9;
+    else scale=1;
+
+    const cx=120, cy=110;
+    ctx.fillStyle="#ffb8d2";
+    ctx.beginPath();
+    ctx.arc(cx,cy,52*scale,0,Math.PI*2);
+    ctx.fill();
+    //耳朵
+    ctx.beginPath();
+    ctx.moveTo(cx-38*scale,cy-34*scale);
+    ctx.lineTo(cx-20*scale,cy-54*scale);
+    ctx.lineTo(cx-14*scale,cy-24*scale);
+    ctx.closePath();ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx+38*scale,cy-34*scale);
+    ctx.lineTo(cx+20*scale,cy-54*scale);
+    ctx.lineTo(cx+14*scale,cy-24*scale);
+    ctx.closePath();ctx.fill();
+    //内耳
+    ctx.fillStyle="#f28fb8";
+    ctx.beginPath();
+    ctx.arc(cx-26*scale,cy-36*scale,7*scale,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx+26*scale,cy-36*scale,7*scale,0,Math.PI*2);ctx.fill();
+    //眼睛
+    ctx.fillStyle="#222222";
+    ctx.beginPath();ctx.arc(cx-17*scale,cy-10*scale,5.5*scale,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx+17*scale,cy-10*scale,5.5*scale,0,Math.PI*2);ctx.fill();
+    //腮红
+    ctx.fillStyle="#ff9fc080";
+    ctx.beginPath();ctx.arc(cx-32*scale,cy+4*scale,8*scale,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx+32*scale,cy+4*scale,8*scale,0,Math.PI*2);ctx.fill();
+    //嘴巴
+    ctx.strokeStyle="#b04872";
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx,cy+8*scale,14*scale,0,Math.PI);ctx.stroke();
+    drawDeco(cx,cy,scale);
+}
+
+function drawDeco(cx,cy,s){
+    const d=save.wearing;
+    ctx.lineWidth=2;
+    if(d==="bow1"){
+        ctx.fillStyle="#dc5085";
+        ctx.beginPath();ctx.arc(cx,cy-56*s,8*s,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(cx-20*s,cy-51*s,7*s,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(cx+20*s,cy-51*s,7*s,0,Math.PI*2);ctx.fill();
+    }else if(d==="sakura"){
+        ctx.fillStyle="#ffa0b4";
+        for(let i=0;i<5;i++){
+            const ang=Math.PI*2*i/5 - Math.PI/2;
+            const fx=cx+24*s*Math.cos(ang);
+            const fy=cy-56*s+24*s*Math.sin(ang);
+            ctx.beginPath();ctx.arc(fx,fy,6.5*s,0,Math.PI*2);ctx.fill();
+        }
+        ctx.fillStyle="#ffdd55";
+        ctx.beginPath();ctx.arc(cx,cy-56*s,5*s,0,Math.PI*2);ctx.fill();
+    }else if(d==="crown"){
+        ctx.fillStyle="#ffd744";
+        ctx.beginPath();
+        ctx.moveTo(cx-22*s,cy-50*s);
+        ctx.lineTo(cx-14*s,cy-64*s);
+        ctx.lineTo(cx-6*s,cy-52*s);
+        ctx.lineTo(cx,cy-66*s);
+        ctx.lineTo(cx+6*s,cy-52*s);
+        ctx.lineTo(cx+14*s,cy-64*s);
+        ctx.lineTo(cx+22*s,cy-50*s);
+        ctx.closePath();ctx.fill();
+    }else if(d==="hat"){
+        ctx.fillStyle="#2c2c2c";
+        ctx.beginPath();ctx.ellipse(cx,cy-50*s,23*s,6*s,0,0,Math.PI*2);ctx.fill();
+        ctx.fillRect(cx-15*s,cy-74*s,30*s,21*s);
+    }else if(d==="starclip"){
+        ctx.fillStyle="#ffdd55";
+        const pts=[];
+        for(let i=0;i<5;i++){
+            const a=Math.PI*2*i/5 - Math.PI/2;
+            pts.push([cx+22*s*Math.cos(a),cy-54*s+22*s*Math.sin(a)]);
+            a+=Math.PI/5;
+            pts.push([cx+10*s*Math.cos(a),cy-54*s+10*s*Math.sin(a)]);
+        }
+        ctx.beginPath();pts.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.closePath();ctx.fill();
+    }else if(d==="scarf"){
+        ctx.fillStyle="#ff8fb8";
+        ctx.beginPath();ctx.ellipse(cx,cy+32*s,36*s,12*s,0,0,Math.PI*2);ctx.fill();
+    }else if(d==="wing"){
+        ctx.fillStyle="#e8e8ff";
+        ctx.beginPath();
+        ctx.ellipse(cx-44*s,cy,22*s,12*s,-0.4,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(cx+44*s,cy,22*s,12*s,0.4,0,Math.PI*2);ctx.fill();
+    }else if(d==="glasses"){
+        ctx.strokeStyle="#333";
+        ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(cx-16*s,cy-6*s,9*s,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.arc(cx+16*s,cy-6*s,9*s,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(cx-7*s,cy-6*s);ctx.lineTo(cx+7*s,cy-6*s);ctx.stroke();
+    }else if(d==="heartglass"){
+        ctx.strokeStyle="#d84878";
+        ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(cx-20*s,cy-6*s,7*s,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.arc(cx-12*s,cy-6*s,7*s,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.arc(cx+20*s,cy-6*s,7*s,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.arc(cx+12*s,cy-6*s,7*s,0,Math.PI*2);ctx.stroke();
+    }else if(d==="bag"){
+        ctx.fillStyle="#b46898";
+        ctx.fillRect(cx-18*s,cy+22*s,36*s,26*s);
+        ctx.fillStyle="#924872";
+        ctx.fillRect(cx-14*s,cy+18*s,28*s,6*s);
+    }else if(d==="birthday"){
+        ctx.fillStyle="#ff6688";
+        ctx.beginPath();
+        ctx.moveTo(cx-16*s,cy-48*s);
+        ctx.lineTo(cx,cy-64*s);
+        ctx.lineTo(cx+16*s,cy-48*s);
+        ctx.closePath();ctx.fill();
+        ctx.fillStyle="#ffdd44";
+        ctx.beginPath();ctx.arc(cx,cy-64*s,4*s,0,Math.PI*2);ctx.fill();
+    }else if(d==="medal"){
+        ctx.fillStyle="#ffc240";
+        ctx.beginPath();ctx.arc(cx+36*s,cy+24*s,11*s,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle="#d83333";
+        ctx.font=`${11*s}px sans-serif`;
+        ctx.fillText("★",cx+32*s,cy+28*s);
+    }
+}
+
+// ✅ 点击小猫：长大一天 + 随机台词
+canvas.onclick=()=>{
+    save.age +=1;
+    saveData();renderInfo();drawCat();
+    const bubble=document.getElementById("bubble");
+    bubble.innerText=`🥳长大啦！现在${save.age}天！`;
+    bubble.classList.remove("hidden");
+    const rect=canvas.getBoundingClientRect();
+    bubble.style.left=(rect.right+12)+"px";
+    bubble.style.top=(rect.top-16)+"px";
+    setTimeout(()=>bubble.classList.add("hidden"),2600);
+}
+
+function addScore(num){
+    save.score+=num;
+    saveData();renderInfo();drawCat();
+    const bubble=document.getElementById("bubble");
+    bubble.innerText=`+${num}分！🥳`;
+    bubble.classList.remove("hidden");
+    const rect=canvas.getBoundingClientRect();
+    bubble.style.left=(rect.right+12)+"px";
+    bubble.style.top=(rect.top-16)+"px";
+    setTimeout(()=>bubble.classList.add("hidden"),2400);
+}
+
+// 随堂测试
+let currentTest = null;
+function openTest(){
+    const idx = Math.floor(Math.random() * testBank.length);
+    currentTest = testBank[idx];
+    const wrap = document.getElementById("testContent");
+    wrap.innerHTML = `<div style="margin-bottom:10px;font-weight:bold">${currentTest.q}</div>`;
+    currentTest.opts.forEach((opt,i)=>{
+        wrap.innerHTML += `<button class="opt-btn" onclick="checkAnswer(${i})">${opt}</button>`
+    })
+    document.getElementById("testResult").innerText = "";
+    document.getElementById("testModal").classList.remove("hidden");
+}
+function checkAnswer(i){
+    const resDom = document.getElementById("testResult");
+    if(i === currentTest.ans){
+        save.score += currentTest.reward;
+        saveData();renderInfo();drawCat();
+        resDom.innerText = `✅答对！+${currentTest.reward}积分`;
+        resDom.style.color="#30b870";
+    }else{
+        resDom.innerText = "❌答错啦，继续加油";
+        resDom.style.color="#d84878";
+    }
+}
+function closeTest(){document.getElementById("testModal").classList.add("hidden")}
+
+//改名
+function openRename(){
+    document.getElementById("renameModal").classList.remove("hidden");
+    document.getElementById("nameInput").value=save.name;
+}
+function closeRename(){document.getElementById("renameModal").classList.add("hidden")}
+function saveName(){
+    const n=document.getElementById("nameInput").value.trim();
+    if(n){save.name=n;saveData();renderInfo();drawCat()}
+    closeRename();
+}
+
+//商店
+function openShop(){
+    const wrap=document.getElementById("shopList");
+    wrap.innerHTML="";
+    decoList.forEach(it=>{
+        const owned=save.owned.includes(it.id);
+        const div=document.createElement("div");
+        div.className="shop-item";
+        if(owned){
+            div.innerHTML=`✅ ${it.name} <span class="bag-label">已拥有（点击穿戴）</span>`;
+        }else{
+            div.innerHTML=`💰 ${it.name} 价格：${it.cost}分`;
+        }
+        div.onclick=()=>{
+            if(owned){
+                save.wearing=it.id;
+                saveData();renderInfo();drawCat();
+                alert(`给${save.name}换上【${it.name}】`);
+            }else{
+                if(save.score>=it.cost){
+                    save.score -= it.cost;
+                    save.owned.push(it.id);
+                    save.wearing=it.id;
+                    saveData();renderInfo();drawCat();
+                    alert(`购买成功！${save.name}获得【${it.name}】🎉`);
+                }else{
+                    alert(`积分不够！还差${it.cost-save.score}分，继续加油！`);
+                }
+            }
+            openShop();
+        }
+        wrap.appendChild(div);
+    })
+    document.getElementById("shopModal").classList.remove("hidden");
+}
+function closeShop(){document.getElementById("shopModal").classList.add("hidden")}
+
+renderInfo();drawCat();
+</script>
+</body>
+</html>
