@@ -18,7 +18,7 @@ body{margin:0;background:#fff0f6;min-height:100vh;display:flex;align-items:cente
 button{border:none;border-radius:14px;padding:10px;font-size:15px;cursor:pointer;background:#ffb8d2;color:#902e58;font-weight:500}
 button:hover{background:#ffa4c4}
 .bubble{position:fixed;background:#fff;border:2px solid #ffb8d2;border-radius:14px;padding:8px 12px;box-shadow:0 3px 8px #00000020;max-width:220px;pointer-events:none;transition:opacity 0.3s;z-index:20}
-.hidden{display:none}
+.hidden{display:none !important;}
 .modal{position:fixed;inset:0;background:#00000035;display:flex;align-items:center;justify-content:center;z-index:99}
 .modal-inner{background:#fff7fb;padding:22px;border-radius:20px;width:320px;max-height:80vh;overflow:auto}
 .modal-inner h3{color:#d86898;margin-top:0;text-align:center}
@@ -27,8 +27,6 @@ button:hover{background:#ffa4c4}
 .bag-label{display:inline-block;background:#ffd7e6;color:#a23b66;border-radius:8px;padding:3px 6px;margin:2px;font-size:13px}
 input[type="text"]{width:100%;padding:9px;border:1px solid #ffc2d8;border-radius:12px;margin:10px 0;font-size:15px}
 .tip{font-size:13px;color:#c26088;text-align:center;margin-top:6px}
-.opt-btn{margin:4px;width:100%;text-align:left;padding:8px 12px}
-.answer-result{text-align:center;font-weight:bold;margin:8px 0;font-size:16px}
 </style>
 </head>
 <body>
@@ -47,7 +45,6 @@ input[type="text"]{width:100%;padding:9px;border:1px solid #ffc2d8;border-radius
         <button onclick="addScore(3)">勇敢发言 +3</button>
         <button onclick="addScore(2)">完成习题 +2</button>
         <button onclick="addScore(4)">订正弄懂 +4</button>
-        <button onclick="openTest()">📝随堂小测</button>
         <button onclick="openRename()">修改名字</button>
         <button class="wide-btn" onclick="openShop()">🏪装扮商店 & 背包</button>
     </div>
@@ -55,7 +52,7 @@ input[type="text"]{width:100%;padding:9px;border:1px solid #ffc2d8;border-radius
 </div>
 <div class="bubble hidden" id="bubble"></div>
 
-<div class="modal hidden" id="shopModal">
+<div class="modal hidden" id="shopModal" onclick="closeShopBg(event)">
     <div class="modal-inner">
         <h3>装扮商店</h3>
         <div id="shopList"></div>
@@ -63,7 +60,7 @@ input[type="text"]{width:100%;padding:9px;border:1px solid #ffc2d8;border-radius
     </div>
 </div>
 
-<div class="modal hidden" id="renameModal">
+<div class="modal hidden" id="renameModal" onclick="closeRenameBg(event)">
     <div class="modal-inner">
         <h3>给小猫取名</h3>
         <input type="text" id="nameInput" placeholder="输入小猫名字">
@@ -71,15 +68,6 @@ input[type="text"]{width:100%;padding:9px;border:1px solid #ffc2d8;border-radius
             <button style="flex:1" onclick="saveName()">保存</button>
             <button style="flex:1" onclick="closeRename()">取消</button>
         </div>
-    </div>
-</div>
-
-<div class="modal hidden" id="testModal" onclick="closeTestByBg(event)">
-    <div class="modal-inner">
-        <h3>📖 随堂小测试</h3>
-        <div id="testContent"></div>
-        <div id="testResult" class="answer-result"></div>
-        <button style="margin-top:12px;width:100%" onclick="closeTest()">关闭</button>
     </div>
 </div>
 
@@ -97,14 +85,6 @@ const talkLines=[
     "坚持练习会越来越厉害！",
     "你今天也很努力啦！",
     "太棒啦，又拿到积分咯！"
-];
-
-const testBank = [
-    {q:"12 × 5 = ?", opts:["50","60","72"], ans:1, reward:6},
-    {q:"地球公转一圈大约是？", opts:["1天","1个月","1年"], ans:2, reward:6},
-    {q:"直角等于多少度？", opts:["90°","180°","360°"], ans:0, reward:5},
-    {q:"水的化学式是？", opts:["H₂O","CO₂","O₂"], ans:0, reward:7},
-    {q:"我国首都是？", opts:["上海","北京","广州"], ans:1, reward:5},
 ];
 
 const decoList=[
@@ -303,44 +283,16 @@ function addScore(num){
     setTimeout(()=>bubble.classList.add("hidden"),2400);
 }
 
-let currentTest = null;
-function openTest(){
-    const idx = Math.floor(Math.random() * testBank.length);
-    currentTest = testBank[idx];
-    const wrap = document.getElementById("testContent");
-    wrap.innerHTML = `<div style="margin-bottom:10px;font-weight:bold">${currentTest.q}</div>`;
-    currentTest.opts.forEach((opt,i)=>{
-        wrap.innerHTML += `<button class="opt-btn" onclick="checkAnswer(${i})">${opt}</button>`
-    })
-    document.getElementById("testResult").innerText = "";
-    document.getElementById("testModal").classList.remove("hidden");
-}
-function checkAnswer(i){
-    const resDom = document.getElementById("testResult");
-    if(i === currentTest.ans){
-        save.score += currentTest.reward;
-        saveData();renderInfo();drawCat();
-        resDom.innerText = `✅答对！+${currentTest.reward}积分`;
-        resDom.style.color="#30b870";
-    }else{
-        resDom.innerText = "❌答错啦，继续加油";
-        resDom.style.color="#d84878";
-    }
-}
-function closeTest(){
-    document.getElementById("testModal").classList.add("hidden");
-}
-function closeTestByBg(e){
-    if(e.target.id === "testModal"){
-        closeTest();
-    }
-}
-
 function openRename(){
     document.getElementById("renameModal").classList.remove("hidden");
     document.getElementById("nameInput").value=save.name;
 }
-function closeRename(){document.getElementById("renameModal").classList.add("hidden")}
+function closeRename(){
+    document.getElementById("renameModal").classList.add("hidden");
+}
+function closeRenameBg(e){
+    if(e.target.id === "renameModal") closeRename();
+}
 function saveName(){
     const n=document.getElementById("nameInput").value.trim();
     if(n){save.name=n;saveData();renderInfo();drawCat()}
@@ -381,7 +333,12 @@ function openShop(){
     })
     document.getElementById("shopModal").classList.remove("hidden");
 }
-function closeShop(){document.getElementById("shopModal").classList.add("hidden")}
+function closeShop(){
+    document.getElementById("shopModal").classList.add("hidden");
+}
+function closeShopBg(e){
+    if(e.target.id === "shopModal") closeShop();
+}
 
 renderInfo();drawCat();
 </script>
