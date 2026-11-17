@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐱数学小猫积分商店</title>
+<style>
+*{box-sizing:border-box;font-family:"SimHei",sans-serif}
+body{margin:0;background:rgba(0,0,0,0.01);overflow:hidden;height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px}
+.wrap{width:320px;background:#fff8ee;border-radius:18px;padding:18px;box-shadow:0 4px 12px #00000022}
+.cat-canvas{width:220px;height:220px;margin:0 auto;display:block}
+.info{text-align:center;margin:8px 0}
+.name-row{font-size:20px;font-weight:bold;color:#b86438;margin-bottom:4px}
+.score-row{font-size:17px;color:#884828}
+.deco-row{font-size:15px;color:#995533;margin-bottom:12px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.shop-btn{grid-column:1/-1}
+button{border:none;border-radius:10px;padding:9px;font-size:15px;cursor:pointer;background:#ffd2b0;color:#602f16}
+button:hover{background:#ffc296}
+.bubble{position:fixed;background:white;border-radius:10px;padding:7px 10px;box-shadow:0 2px 6px #0003;max-width:200px;pointer-events:none;transition:opacity 0.3s}
+.modal{position:fixed;inset:0;background:#00000044;display:flex;align-items:center;justify-content:center;z-index:99}
+.modal-inner{background:#fff8ee;padding:20px;border-radius:16px;width:290px}
+.hidden{display:none}
+.shop-item{padding:7px;border-bottom:1px solid #ffddc4}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="info">
+        <div class="name-row" id="catNameText"></div>
+        <div class="score-row">积分：<span id="scoreText">0</span></div>
+        <div class="deco-row">当前装扮：<span id="wearText">无</span></div>
+    </div>
+    <canvas class="cat-canvas" id="catCanvas" width="220" height="220"></canvas>
+    <div class="btns">
+        <button onclick="addScore(3)">勇敢发言 +3</button>
+        <button onclick="addScore(2)">完成习题 +2</button>
+        <button onclick="addScore(4)">订正弄懂 +4</button>
+        <button onclick="openRename()">修改名字</button>
+        <button class="shop-btn" onclick="openShop()">🏪积分商店</button>
+    </div>
+</div>
+<div class="bubble hidden" id="bubble"></div>
+<div class="modal hidden" id="shopModal">
+    <div class="modal-inner">
+        <h3>🏪小猫商店</h3>
+        <div id="shopList"></div>
+        <button style="margin-top:10px;width:100%" onclick="closeShop()">关闭商店</button>
+    </div>
+</div>
+<div class="modal hidden" id="renameModal">
+    <div class="modal-inner">
+        <h3>给小猫取名</h3>
+        <input type="text" id="nameInput" style="width:100%;padding:7px;margin:8px 0">
+        <div style="display:flex;gap:6px">
+            <button style="flex:1" onclick="saveName()">保存</button>
+            <button style="flex:1" onclick="closeRename()">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const canvas=document.getElementById("catCanvas");
+const ctx=canvas.getContext("2d");
+const talkLines=[
+    "没关系，慢慢想😊",
+    "敢说出思路就超棒！",
+    "错题是拿奖励的机会哦",
+    "我们再试一次吧✨",
+    "哇，这一步想对啦！",
+    "加油，你可以的🥰",
+    "订正完就变强咯！"
+];
+const shop=[
+    {id:"bow",name:"粉色蝴蝶结🎀",cost:12},
+    {id:"flower",name:"樱花发饰🌸",cost:18},
+    {id:"star",name:"星光斗篷✨",cost:25},
+    {id:"hat",name:"小黑礼帽🎩",cost:32},
+];
+let save=JSON.parse(localStorage.getItem("catSave"))||{
+    name:"",score:0,owned:[],wearing:"none"
+};
+function saveData(){localStorage.setItem("catSave",JSON.stringify(save))}
+function renderInfo(){
+    document.getElementById("catNameText").innerText=save.name||"还没有名字";
+    document.getElementById("scoreText").innerText=save.score;
+    const map={"none":"无","bow":"蝴蝶结🎀","flower":"樱花发饰🌸","star":"星光斗篷✨","hat":"小黑礼帽🎩"};
+    document.getElementById("wearText").innerText=map[save.wearing];
+}
+function drawCat(){
+    ctx.clearRect(0,0,220,220);
+    const cx=110,cy=100,s=1;
+    ctx.fillStyle="#ffc8a0";
+    ctx.beginPath();ctx.arc(cx,cy,48*s,0,Math.PI*2);ctx.fill();
+    //耳朵
+    ctx.beginPath();
+    ctx.moveTo(cx-36*s,cy-32*s);ctx.lineTo(cx-19*s,cy-50*s);ctx.lineTo(cx-13*s,cy-23*s);ctx.closePath();ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx+36*s,cy-32*s);ctx.lineTo(cx+19*s,cy-50*s);ctx.lineTo(cx+13*s,cy-23*s);ctx.closePath();ctx.fill();
+    //眼睛
+    ctx.fillStyle="#222";
+    ctx.beginPath();ctx.arc(cx-16*s,cy-9*s,5*s,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx+16*s,cy-9*s,5*s,0,Math.PI*2);ctx.fill();
+    //嘴
+    ctx.strokeStyle="#582222";ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(cx,cy,13*s,0,Math.PI);ctx.stroke();
+
+    //装扮
+    if(save.wearing==="bow"){
+        ctx.fillStyle="#dc5070";
+        ctx.beginPath();ctx.arc(cx,cy-52*s,7*s,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(cx-18*s,cy-48*s,6*s,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(cx+18*s,cy-48*s,6*s,0,Math.PI*2);ctx.fill();
+    }else if(save.wearing==="flower"){
+        ctx.fillStyle="#ffa0b4";
+        for(let i=0;i<5;i++){
+            const ang=Math.PI*2*i/5;
+            const fx=cx+22*s*Math.cos(ang-1.57);
+            const fy=cy-54*s+22*s*Math.sin(ang-1.57);
+            ctx.beginPath();ctx.arc(fx,fy,6*s,0,Math.PI*2);ctx.fill();
+        }
+        ctx.fillStyle="#ffdc50";
+        ctx.beginPath();ctx.arc(cx,cy-54*s,5*s,0,Math.PI*2);ctx.fill();
+    }else if(save.wearing==="star"){
+        ctx.fillStyle="#f0d250";
+        const pts=[];
+        for(let i=0;i<5;i++){
+            const a=Math.PI*2*i/5 -1.57;
+            pts.push([cx+32*s*Math.cos(a),cy-56*s+32*s*Math.sin(a)]);
+            a+=Math.PI/5;
+            pts.push([cx+14*s*Math.cos(a),cy-56*s+14*s*Math.sin(a)]);
+        }
+        ctx.beginPath();pts.forEach(p=>ctx.lineTo(p[0],p[1]));ctx.closePath();ctx.fill();
+    }else if(save.wearing==="hat"){
+        ctx.fillStyle="#2c2c2c";
+        ctx.beginPath();ctx.ellipse(cx,cy-49*s,22*s,6*s,0,0,Math.PI*2);ctx.fill();
+        ctx.fillRect(cx-14*s,cy-72*s,28*s,20*s);
+    }
+}
+canvas.onclick=()=>{
+    const bubble=document.getElementById("bubble");
+    bubble.innerText=talkLines[Math.floor(Math.random()*talkLines.length)];
+    bubble.classList.remove("hidden");
+    bubble.style.left=(canvas.getBoundingClientRect().right+10)+"px";
+    bubble.style.top=(canvas.getBoundingClientRect().top-20)+"px";
+    setTimeout(()=>bubble.classList.add("hidden"),2400);
+}
+function addScore(num){
+    save.score+=num;saveData();renderInfo();drawCat();
+    const bubble=document.getElementById("bubble");
+    bubble.innerText=`+${num}分！太棒啦🥳`;
+    bubble.classList.remove("hidden");
+    bubble.style.left=(canvas.getBoundingClientRect().right+10)+"px";
+    bubble.style.top=(canvas.getBoundingClientRect().top-20)+"px";
+    setTimeout(()=>bubble.classList.add("hidden"),2400);
+}
+function openRename(){
+    document.getElementById("renameModal").classList.remove("hidden");
+    document.getElementById("nameInput").value=save.name;
+}
+function closeRename(){document.getElementById("renameModal").classList.add("hidden")}
+function saveName(){
+    const n=document.getElementById("nameInput").value.trim();
+    if(n){save.name=n;saveData();renderInfo();drawCat()}
+    closeRename();
+}
+function openShop(){
+    const wrap=document.getElementById("shopList");wrap.innerHTML="";
+    shop.forEach(it=>{
+        const owned=save.owned.includes(it.id);
+        const div=document.createElement("div");div.className="shop-item";
+        div.innerText=owned?`✅${it.name}（已拥有，点击穿戴）`:`💰${it.name} 价格：${it.cost}分`;
+        div.onclick=()=>{
+            if(owned){
+                save.wearing=it.id;saveData();renderInfo();drawCat();
+                alert(`给${save.name}换上${it.name}`);
+            }else{
+                if(save.score>=it.cost){
+                    save.score-=it.cost;
+                    save.owned.push(it.id);
+                    save.wearing=it.id;
+                    saveData();renderInfo();drawCat();
+                    alert(`购买成功🎉，${save.name}获得${it.name}`);
+                }else{alert(`积分不足，还差${it.cost-save.score}分，继续加油！`)}
+            }
+            openShop();
+        }
+        wrap.appendChild(div);
+    })
+    document.getElementById("shopModal").classList.remove("hidden");
+}
+function closeShop(){document.getElementById("shopModal").classList.add("hidden")}
+renderInfo();drawCat();
+</script>
+</body>
+</html>
